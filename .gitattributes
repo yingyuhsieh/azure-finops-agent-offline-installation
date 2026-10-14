@@ -1,0 +1,2 @@
+offline-package.zip filter=lfs diff=lfs merge=lfs -text
+offline-package/AzureCLI-x64.msi filter=lfs diff=lfs merge=lfs -text
