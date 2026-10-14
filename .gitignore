@@ -1,0 +1,16 @@
+# Virtual environments belong to the target installation machine.
+.venv/
+venv/
+
+# Local configuration and credentials.
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+appsettings.Local.json
+
+# Local tooling and generated files.
+node_modules/
+__pycache__/
+*.pyc
+*.log

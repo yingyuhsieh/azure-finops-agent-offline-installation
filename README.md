@@ -8,6 +8,19 @@ The focus of this repository is packaging and installation. For application sour
 
 For detailed instructions in Traditional Chinese, see [Windows 離線安裝與啟動指南](offline.install.md).
 
+## Download the package
+
+The package ZIP and Azure CLI MSI are stored using [Git Large File Storage (Git LFS)](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-git-large-file-storage). On a computer with network access, install Git and Git LFS, then run:
+
+```powershell
+git lfs install
+git clone https://github.com/yingyuhsieh/azure-finops-agent-offline-installation.git
+Set-Location azure-finops-agent-offline-installation
+git lfs pull
+```
+
+Transfer the downloaded `offline-package.zip` or unpacked package to the target computer. Git and Git LFS are needed only on the download computer. GitHub's automatically generated source ZIP may contain LFS pointers instead of the installers; use the Git LFS checkout to obtain the full package.
+
 ## Repository contents
 
 ```text
