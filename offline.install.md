@@ -131,6 +131,78 @@ python -m venv .venv
 
 登入 Azure CLI 的帳號須在模型所在的 Foundry 帳戶上具備 **Foundry User** 角色。只有 Owner 管理角色不足以執行模型推論。安裝包不會自動建立 Foundry 專案或模型。
 
+### 7.1 在瀏覽器開啟 Foundry 專案
+
+這裡的「進入專案」是指在 Foundry 網站選取並開啟雲端專案，不是用 PowerShell 切換本機資料夾。以下操作需要連網。
+
+1. 用 Edge 或 Chrome 開啟 [Microsoft Foundry](https://ai.azure.com/)。
+2. 登入要使用的 Azure 帳號，確認選用正確的租用戶。
+3. 找到專案選單或專案清單；若已有專案開啟，可點選左上角的專案名稱切換。
+4. 點選要使用的專案，例如 `finops-project`。
+5. 畫面顯示該專案名稱及專案內容後，才表示已「進入專案」。
+
+若只看到建立專案的選項，請先確認管理者是否已建立專案及授予您存取權。若確實要建立新專案，選擇 **Create new project**，填入名稱，於 **Advanced options** 確認資源群組、區域及訂用帳戶，再選擇 **Create project**。建立新資源需要相應權限。
+
+### 7.2 部署模型或確認既有部署
+
+如果管理者已提供可用的模型部署，直接記下部署名稱，不必重複部署。若尚未部署，請在上一步開啟的 Foundry 專案中操作：
+
+1. 點選 **Build**，再於左側選擇 **Models**。
+2. 點選 **Deploy → Deploy a base model**，開啟模型選擇畫面。
+3. 選擇符合此應用程式需求、支援 Responses API 與工具呼叫的模型；本儲存庫預設使用 `gpt-6.1-sol`，實際可部署項目取決於區域及配額。
+4. 依部署畫面確認版本、部署類型及容量，設定部署名稱，例如 `finops-model`，再提交部署。模型使用會產生 Azure 費用。
+5. 等待部署完成，開啟部署詳細資料，記下 **Deployment name（部署名稱）**。這個名稱可能與模型名稱不同。
+
+如果找不到模型或無法部署，請向管理者確認區域、配額及權限。畫面名稱可能隨 Foundry 版本不同；完整操作可參閱 [Microsoft 官方建立專案與部署模型指南](https://learn.microsoft.com/en-us/azure/foundry/tutorials/quickstart-create-foundry-resources)。
+
+### 7.3 複製專案端點並確認權限
+
+1. 在同一專案開啟 **Overview（總覽）** 或專案歡迎頁面。
+2. 找到 **Project endpoint（專案端點）**，複製完整網址，不要依顯示名稱自行拼湊。
+3. 確認端點包含 `/api/projects/專案名稱`，格式如下：
+
+```text
+https://帳戶名稱.services.ai.azure.com/api/projects/專案名稱
+```
+
+依本儲存庫的本機設定要求，Azure CLI 登入帳號須在模型所在的 Foundry 帳戶資源上具備 **Foundry User** 角色。請有角色指派權限的管理者在該資源的 **存取控制（IAM）→ 新增角色指派** 中授予此角色。Owner 管理角色本身不足以執行模型推論。
+
+端點用途可參閱 [Microsoft 官方 SDK 與端點說明](https://learn.microsoft.com/en-us/azure/foundry/how-to/develop/sdk-overview)。
+
+### 7.4 填入本機設定
+
+把剛取得的端點與部署名稱填入以下兩行，保留雙引號：
+
+```powershell
+$env:AzureOpenAI__Endpoint = "貼上完整的 Foundry 專案端點"
+$env:AzureOpenAI__DeploymentName = "填入實際模型部署名稱"
+```
+
+這兩行須與 `Dashboard.exe` 在同一個 PowerShell 視窗執行。若程式已啟動，先按 Ctrl+C 停止，設定後再啟動。
+
+第 8 節完成 Azure CLI 登入後，依第 9 節完整設定啟動程式。
+
+### 7.5 驗證 AI 設定與連線
+
+填入上述兩行，是指定程式要連接的 AI 模型；還需要確認以下條件：
+
+- **模型已部署**：在 Foundry 的 **Build → Models** 確認部署可用，並核對 **Deployment name** 與 `AzureOpenAI__DeploymentName` 完全一致。部署名稱不一定等於模型名稱。
+- **端點正確**：本指南使用完整的 Foundry 專案端點，網址須包含 `/api/projects/專案名稱`；不要直接以 Azure OpenAI 端點取代。
+- **身分與權限可用**：依第 8 節登入 Azure，使用 `az account show` 確認帳號、租用戶及訂用帳戶。該帳號須具有第 7.3 節說明的 Foundry User 權限；登入成功本身不代表可以呼叫模型。
+- **使用同一視窗啟動**：環境變數只對目前 PowerShell 工作階段及其啟動的程式生效。依第 9 節在同一視窗設定並啟動；若程式已執行，先按 Ctrl+C，重新設定後再啟動。
+
+啟動前，可在該 PowerShell 視窗查看目前設定，確認已換成實際值，沒有保留提示文字或 `<...>`：
+
+```powershell
+$env:AzureOpenAI__Endpoint
+$env:AzureOpenAI__DeploymentName
+az account show
+```
+
+以上只能核對設定與登入狀態。完成第 9 節後，依第 10 節在本機聊天介面輸入「請用一句話介紹 Azure FinOps」，等待完整的 AI 回答，並查看執行程式的 PowerShell 是否有連線或驗證錯誤。這次測試會呼叫模型並產生用量費用。
+
+**實際收到模型回答，才能確認當次本機設定、Azure 驗證與模型存取可用。** 能開啟網頁或看到 `Now listening on` 只表示網站已啟動，不能證明 AI 連線成功。若回答失敗，依錯誤訊息檢查登入與權限、端點與部署名稱，或網路與模型配額；不要僅因網頁可開啟就判定驗證通過。
+
 ## 8. 登入 Azure
 
 從這一步開始，需要連線至 Azure。將範例中的 `<...>`（包括尖括號）替換為實際值：
