@@ -1,6 +1,6 @@
 # Windows 離線安裝與啟動指南
 
-本指南從「已取得完整的 `offline-package`」開始，適用於 Windows x64。依順序完成第一次安裝後，日後只需登入 Azure、設定環境變數並啟動程式。
+本指南從「已取得完整的 `offline-package`」開始，適用於 Python 3.12 或 3.13、Windows x64。以下以 Python 3.12 為主要範例，使用 Python 3.13 時請選用對應指令。依順序完成第一次安裝後，日後只需登入 Azure、設定環境變數並啟動程式。
 
 安裝 Python 套件時不需要連網；AI 回答與 Azure 資料查詢仍須連線至 Microsoft Foundry、Azure 登入及相關 API。目標電腦不需要安裝 Node.js 或 .NET SDK。
 
@@ -15,38 +15,53 @@ D:\FinOps\
 │   ├── appsettings.json
 │   ├── wwwroot\
 │   └── 其他程式檔案……
-├── wheels\
+├── wheels-py312\
+├── wheels-py313\
 ├── requirements-offline.txt
+├── python-3.12.10-amd64.exe
 ├── python-3.13.16-amd64.exe
 └── AzureCLI-x64.msi
 ```
 
-`wheels` 存放離線套件；`requirements-offline.txt` 記錄固定版本與 SHA-256 檢查碼，兩者須一起保留。套件適用於一般版 CPython 3.13、Windows x64。
+`wheels-py312` 與 `wheels-py313` 分別存放一般版 CPython 3.12 與 3.13 的 Windows x64 離線套件；兩者共用 `requirements-offline.txt` 的固定版本清單。請保留所選版本的完整 wheels 目錄與清單，不要混用兩個版本的專用 wheels。
 
 `.venv` 是稍後在目標電腦建立的專用 Python 環境。不要沿用從其他電腦或其他路徑複製來的 `.venv`；請在最終安裝位置重新建立。
 
-以下以 `D:\FinOps` 為例。若直接在目前的專案電腦操作，請將此路徑改成 `D:\mcp\azure-finops-agent\offline-package`；若沒有 D 槽，也可改用 `C:\FinOps`。
+以下以 `D:\FinOps` 為例。若直接在目前的專案電腦操作，請將此路徑改成 `D:\mcp\azure-finops-agent-offline-installation\offline-package`；若沒有 D 槽，也可改用 `C:\FinOps`。
 
-## 2. 安裝 Python
+## 2. 選擇並安裝 Python 版本
 
-Python 用來分析上傳的檔案。
+Python 用來分析上傳的檔案。本指南使用 [Python 3.12.10 官方 Windows x64 安裝程式](https://www.python.org/downloads/release/python-31210/)。套件另保留 Python 3.13 安裝程式與 `wheels-py313/`；兩個版本的專用 wheels 請勿混用。
 
-1. 在安裝包資料夾連按兩下 `python-3.13.16-amd64.exe`。
+| Python 版本 | 安裝程式 | 離線套件目錄 |
+| --- | --- | --- |
+| 3.12 x64 | `python-3.12.10-amd64.exe` | `wheels-py312` |
+| 3.13 x64 | `python-3.13.16-amd64.exe` | `wheels-py313` |
+
+1. 在安裝包資料夾連按兩下所選版本的安裝程式；只需安裝其中一個版本。
 2. 勾選 **Add python.exe to PATH**，讓 PowerShell 能找到 Python。
-3. 按 **Install Now**，等候完成。若使用自訂安裝，確認包含 **pip**。
-4. 關閉安裝程式。
+3. 按 **Install Now**，等候完成。若使用自訂安裝，確認包含 **pip** 與 **Python Launcher（py）**。
+4. 確認已安裝 **Python Launcher（py）**，再關閉安裝程式。
 
 開啟 Windows 開始功能表，搜尋 **PowerShell** 並開啟。若原本已開啟，請關閉後重新開啟，讓設定生效。
 
 以下每段指令貼上後按 Enter，等待完成再繼續。**只貼指令，不要貼執行結果、`PS ...>` 或 `>>` 提示。**
 
 ```powershell
-python --version
-python -m pip --version
-python -c "import struct; print(struct.calcsize('P') * 8)"
+py -3.12 --version
+py -3.12 -m pip --version
+py -3.12 -c "import struct; print(struct.calcsize('P') * 8)"
 ```
 
-預期依序顯示 Python 3.13 的版本、pip 版本，以及 `64`。如果已安裝相容的 Python 3.13 x64，可直接使用；若顯示其他主次版本或 `32`，先修正 Python 選用版本，再繼續。
+預期依序顯示 Python 3.12 的版本、pip 版本，以及 `64`。如果已安裝相容的 Python 3.12 x64，可直接使用；若顯示其他主次版本或 `32`，先修正 Python 選用版本，再繼續。
+
+使用 Python 3.13 時，改執行以下檢查，確認版本為 3.13、位元數為 `64`：
+
+```powershell
+py -3.13 --version
+py -3.13 -m pip --version
+py -3.13 -c "import struct; print(struct.calcsize('P') * 8)"
+```
 
 ## 3. 安裝 Azure CLI
 
@@ -69,40 +84,60 @@ az version
 
 ```powershell
 cd D:\FinOps
-Test-Path .\wheels
+Test-Path .\wheels-py312
 Test-Path .\requirements-offline.txt
 Test-Path .\app\Dashboard.exe
 ```
 
-三項檢查都應顯示 `True`。若有 `False`，請先確認路徑或補齊檔案，暫停後續步驟。
+使用 Python 3.13 時，將第一項檢查改為 `Test-Path .\wheels-py313`。三項檢查都應顯示 `True`。若有 `False`，請先確認路徑或補齊檔案，暫停後續步驟。
 
 ## 5. 建立專用環境並離線安裝套件
+
+若已有另一個 Python 版本建立的 `.venv`，先停止應用程式並將該目錄重新命名，例如 `.venv-py313-backup`；不要覆蓋或跨版本沿用。以下兩組指令只選一組執行。
+
+### Python 3.12
 
 先建立 `.venv`。它像這個專案專用的工具箱，可避免套件版本影響其他 Python 程式。
 
 ```powershell
-python -m venv .venv
+py -3.12 -m venv .venv
 ```
 
 建立成功時可能沒有額外文字，回到 PowerShell 輸入提示即可。接著使用專用環境中的 Python 安裝：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheels --require-hashes -r .\requirements-offline.txt
+.\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheels-py312 -r .\requirements-offline.txt
 ```
+
+### Python 3.13
+
+在安裝包根目錄改用以下指令建立環境並安裝：
+
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheels-py313 -r .\requirements-offline.txt
+```
+
+### 指令說明
 
 | 指令部分 | 意義 |
 | --- | --- |
 | `.\.venv\Scripts\python.exe` | 使用本專案的 Python 環境 |
 | `--no-index` | 不向網路套件站台查詢 |
-| `--find-links .\wheels` | 從本機資料夾取得套件 |
+| `--find-links .\wheels-py312` 或 `.\wheels-py313` | 從對應 Python 版本的本機目錄取得套件 |
 | `-r .\requirements-offline.txt` | 按清單安裝固定版本 |
-| `--require-hashes` | 檢查下載檔案是否符合清單中的 SHA-256 |
 
 請勿將這行改為共用環境的 `python -m pip install`。此操作方式不需要執行 `Activate.ps1`，也不需要修改 PowerShell 執行原則。
 
 ## 6. 驗證 Python 套件
 
-先檢查套件能否載入：
+兩個版本後續均使用 `.venv` 中的 Python，啟動應用程式的指令相同。先確認環境中的 Python 版本：
+
+```powershell
+.\.venv\Scripts\python.exe --version
+```
+
+應顯示所選的 3.12 或 3.13 版本。接著檢查套件能否載入：
 
 ```powershell
 .\.venv\Scripts\python.exe -c "import requests, pandas, numpy, openpyxl, tabulate, dateutil, pdfminer, pyarrow; print('Python packages OK')"
@@ -266,12 +301,11 @@ $env:AzureOpenAI__DeploymentName = "<模型部署名稱>"
 | 狀況 | 處理方式 |
 | --- | --- |
 | 出現 `>>` 或 `ParserError` | 按 Ctrl+C，只重新貼上指令；不要貼入先前的輸出文字。 |
-| 無法辨識 `python` 或 `az` | 重新開啟 PowerShell，確認工具已安裝及加入 PATH。 |
+| 無法辨識 `py` 或 `az` | 重新開啟 PowerShell，確認工具已安裝及加入 PATH。 |
 | 輸入 `python` 後開啟 Microsoft Store | 檢查 Windows 的應用程式執行別名，以及已安裝 Python 的 PATH。 |
-| `Location .\wheels is ignored` | 目前位置不正確或缺少資料夾；回到第 4 節檢查。 |
-| `No matching distribution found` | 確認 wheel 已帶齊，且使用一般版 Python 3.13 x64。 |
+| `Location .\wheels-py312 is ignored` | 目前位置不正確或缺少資料夾；回到第 4 節檢查。 |
+| `No matching distribution found` | 確認 wheel 已帶齊；Python 3.12 x64 使用 `wheels-py312`，Python 3.13 x64 使用 `wheels-py313`。 |
 | 安裝顯示其他程式的套件衝突 | 確認指令以 `.\.venv\Scripts\python.exe` 開頭。 |
-| SHA-256 不符 | 重新取得相符的清單與套件；不要移除檢查碼來略過驗證。 |
 | `Resolve-Path` 找不到 Python | 確認在安裝包根目錄執行，且已完成第 5 節。 |
 | 5000 連接埠已被使用 | 停止之前的程式，或將網址設定改成 `http://localhost:5001` 並使用新網址。 |
 | 網頁開啟但 AI 回答失敗 | 檢查登入、Foundry User 權限、端點、部署名稱及網路。 |

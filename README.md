@@ -37,22 +37,24 @@ Transfer the downloaded `offline-package.zip` or unpacked package to the target 
     │   ├── wwwroot/                 # Built web interface
     │   ├── frontend/                # Frontend project files
     │   └── ...                      # Application dependencies and .NET runtime
-    ├── wheels/
+    ├── wheels-py312/                # CPython 3.12 / Windows x64 wheels and manifest
+    ├── python-3.12.10-amd64.exe
+    ├── wheels-py313/
     │   ├── manifest.json            # Wheel versions, sources, sizes, and hashes
     │   └── *.whl                   # 18 Python dependency wheels
-    ├── requirements-offline.txt     # Pinned versions and SHA-256 hashes
+    ├── requirements-offline.txt     # Pinned dependency versions (shared by Python 3.12 and 3.13)
     ├── installers.sha256           # Python and Azure CLI installer hashes
     ├── python-3.13.16-amd64.exe
     ├── AzureCLI-x64.msi
     └── .venv/                      # Existing machine-specific environment; recreate locally
 ```
 
-The published application includes .NET 10.0.13 and the built web assets. Target computers do not need Node.js, npm, or a separate .NET SDK/runtime installation. The Python wheels target standard CPython 3.13 on Windows x64.
+The published application includes .NET 10.0.13 and the built web assets. Target computers do not need Node.js, npm, or a separate .NET SDK/runtime installation. The `wheels-py312/` wheels target standard CPython 3.12 on Windows x64; `wheels-py313/` retains CPython 3.13 support. The Traditional Chinese guide now uses Python 3.12.
 
 ## Requirements
 
 - Windows x64 with PowerShell and a modern browser.
-- Python 3.13 x64 and Azure CLI, installed using the bundled installers if needed.
+- Python 3.12 x64 (or the retained 3.13 option) and Azure CLI, installed using the bundled installers if needed.
 - An existing Microsoft Foundry project endpoint and model deployment.
 - An Azure account authorized to use that model deployment.
 - Network access to Azure authentication, the Foundry endpoint, and any services used by the requested features.
@@ -65,31 +67,31 @@ The installation guide specifies the **Foundry User** role for model access. Hav
 
 Extract `offline-package.zip`, then copy the **contents of its `offline-package` folder** into your final installation directory, such as `D:\FinOps`. You can also copy the unpacked folder contents directly.
 
-Keep the entire `app` directory, all wheels, both installers, and their manifests together. Exclude the bundled `.venv` when copying: it refers to paths on the preparation computer. If already extracted, rename that `.venv` before creating a fresh one.
+Keep the entire `app` directory, all wheels, the prerequisite installers, and their manifests together. Exclude the bundled `.venv` when copying: it refers to paths on the preparation computer. If already extracted, rename that `.venv` before creating a fresh one.
 
-Run `python-3.13.16-amd64.exe` and enable **Add python.exe to PATH** and **pip**. Run `AzureCLI-x64.msi`, then reopen PowerShell.
+Run `python-3.12.10-amd64.exe` and enable **Add python.exe to PATH** and **pip**. Run `AzureCLI-x64.msi`, then reopen PowerShell.
 
 ```powershell
-python --version
-python -c "import struct; print(struct.calcsize('P') * 8)"
+py -3.12 --version
+py -3.12 -c "import struct; print(struct.calcsize('P') * 8)"
 az version
 ```
 
-Confirm Python 3.13 and `64` before continuing. Use your actual installation directory in place of `D:\FinOps` throughout this README.
+Confirm Python 3.12 and `64` before continuing. Use your actual installation directory in place of `D:\FinOps` throughout this README.
 
 ### 2. Create a local Python environment
 
 ```powershell
 Set-Location D:\FinOps
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheels --require-hashes -r .\requirements-offline.txt
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --no-index --find-links .\wheels-py312 -r .\requirements-offline.txt
 .\.venv\Scripts\python.exe -m pip check
 .\.venv\Scripts\python.exe -c "import requests, pandas, numpy, openpyxl, tabulate, dateutil, pdfminer, pyarrow; print('Python packages OK')"
 ```
 
-`--no-index` prevents package-index access, and `--require-hashes` checks each wheel against the requirements file. Expect `No broken requirements found.` and `Python packages OK`. Environment activation and changes to PowerShell execution policy are unnecessary.
+`--no-index` prevents package-index access. Dependency versions remain pinned; installation does not require hashes. Expect `No broken requirements found.` and `Python packages OK`. Environment activation and changes to PowerShell execution policy are unnecessary.
 
-Recreate this environment whenever the installation moves to another computer or directory.
+Recreate this environment whenever the installation moves to another computer or directory, or switches Python versions. Rename an existing Python 3.13 `.venv` before creating the Python 3.12 environment. To retain Python 3.13, use its installer, `py -3.13`, and `--find-links .\wheels-py313` instead.
 
 ### 3. Sign in to Azure
 
@@ -138,21 +140,20 @@ The repository currently contains a prepared folder and ZIP. It does not contain
 
 1. Record the exact upstream commit/tag used to build `Dashboard.exe`, along with the build command and target runtime.
 2. Retain the complete published application and built `wwwroot` assets.
-3. Collect all Python dependencies for CPython 3.13 / Windows x64, pin every dependency, and update the wheel hashes and `wheels/manifest.json` together.
+3. Collect all Python dependencies for CPython 3.12 and 3.13 / Windows x64, pin every dependency, and update the corresponding wheel manifests together.
 4. Include the prerequisite installers and update `installers.sha256` whenever they change. From the package directory, use `Get-FileHash -Algorithm SHA256` to compare installers with the manifest.
 5. Assemble a clean distribution folder without `.venv`, credentials, uploaded customer files, or local session data. Include this README, the installation guide, upstream license, and applicable third-party notices.
 6. Create a new archive from that folder. Test extraction, prerequisite installation, and Python installation on a clean Windows x64 computer with package-download access disabled. Then enable required Azure connectivity and verify chat and file analysis.
-7. Publish the archive with its SHA-256 checksum and a release manifest identifying the upstream revision and bundled component versions. Use a release asset or artifact store that supports its size; the current ZIP is approximately 390 MiB.
+7. Publish the archive with its SHA-256 checksum and a release manifest identifying the upstream revision and bundled component versions. Use a release asset or artifact store that supports its size; check the regenerated ZIP size before publishing.
 
-The existing ZIP includes a machine-specific `.venv`; regenerate a clean archive before distribution. The upstream build revision is not recorded in the current package.
+Exclude machine-specific `.venv` directories when regenerating the archive. The upstream build revision is not recorded in the current package.
 
 ## Troubleshooting
 
 | Problem | Check |
 | --- | --- |
 | `python` or `az` is not recognized | Reopen PowerShell after installation and check PATH. |
-| No matching Python distribution | Use standard Python 3.13 x64 and ensure all wheels are present. |
-| Wheel hash mismatch | Obtain the matching requirements file and wheels; keep hash verification enabled. |
+| No matching Python distribution | Match Python 3.12 x64 with `wheels-py312/`, or Python 3.13 x64 with `wheels-py313/`. |
 | `FINOPS_PYTHON` cannot be resolved | Create `.venv` in the final installation directory and resolve it from that directory. |
 | Port 5000 is occupied | Stop the earlier process or set `ASPNETCORE_URLS` to `http://localhost:5001` and open that URL. |
 | Web interface works but AI responses fail | Check Azure CLI sign-in, model permissions, the project endpoint, deployment name, and connectivity. |
@@ -160,7 +161,7 @@ The existing ZIP includes a machine-specific `.venv`; regenerate a clean archive
 
 ## Verification status
 
-Repository review confirmed that all 18 wheel files match the hashes in `requirements-offline.txt` and that both installers match `installers.sha256`. These checks establish consistency with the local manifests. Installation on a clean target computer and live Azure/model operation were not tested during this documentation review.
+The 18 Python 3.12 wheel files match PyPI metadata. A fresh Python 3.12.10 x64 environment was installed using only `wheels-py312/`; dependency checks, imports, and synthetic data-processing checks passed. The Python 3.12 installer has a valid Python Software Foundation signature. Live Azure/model operation and installation on a clean target computer were not tested.
 
 ## Attribution and licensing
 
